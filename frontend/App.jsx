@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from "react";
 
 import {
-  ResponsiveContainer,
   AreaChart,
   Area,
   BarChart,
   Bar,
-  CartesianGrid,
   XAxis,
   YAxis,
+  CartesianGrid,
   Tooltip,
-  ReferenceLine,
+  ResponsiveContainer,
 } from "recharts";
 
 import {
@@ -180,8 +179,7 @@ function formatPercent(value) {
 function getDecisionStatus(changePercent, riskLevel) {
   if (
     changePercent === null ||
-    changePercent === undefined ||
-    !Number.isFinite(Number(changePercent))
+    changePercent === undefined
   ) {
     return {
       label: "AWAITING FORECAST",
@@ -191,18 +189,9 @@ function getDecisionStatus(changePercent, riskLevel) {
     };
   }
 
-  const change = Number(changePercent);
+  const change = Number(changePercent) || 0;
 
-  const risk = String(riskLevel || "").toUpperCase();
-
-  const elevatedRisk = [
-    "HIGH",
-    "CRITICAL",
-    "VERY HIGH",
-  ].includes(risk);
-
-  // Elevated risk: caution against committing blindly
-  if (elevatedRisk) {
+  if (riskLevel === "High" && Math.abs(change) >= 3) {
     return {
       label: "COST ALERT",
       color: "#fb7185",
@@ -211,8 +200,7 @@ function getDecisionStatus(changePercent, riskLevel) {
     };
   }
 
-  // Forecast indicates a meaningful rate decline
-  if (change <= -2) {
+  if (change < -2 && riskLevel !== "High") {
     return {
       label: "FREIGHT ADVANTAGE",
       color: "#4ade80",
@@ -221,47 +209,11 @@ function getDecisionStatus(changePercent, riskLevel) {
     };
   }
 
-  // Forecast indicates a meaningful rate increase
-  if (change >= 2) {
-    return {
-      label: "RATES RISING",
-      color: "#fb7185",
-      background: "rgba(251,113,133,0.10)",
-      border: "rgba(251,113,133,0.25)",
-    };
-  }
-
-  // Small or mixed movement
   return {
     label: "MARKET WATCH",
     color: "#fbbf24",
     background: "rgba(251,191,36,0.10)",
     border: "rgba(251,191,36,0.25)",
-  };
-}
-function getCharterPlanningSignal(horizon) {
-  const days = Number(horizon);
-
-  if (!Number.isFinite(days)) {
-    return {
-      type: "AWAITING INPUT",
-      description:
-        "Select a forecast horizon to determine the charter planning window.",
-    };
-  }
-
-  if (days <= 30) {
-    return {
-      type: "SHORT-TERM CHARTER",
-      description:
-        "Forecast supports short-term charter planning over the selected horizon.",
-    };
-  }
-
-  return {
-    type: "MEDIUM-TERM CHARTER",
-    description:
-      "Forecast supports medium-term multi-voyage charter planning over the selected horizon.",
   };
 }
 
@@ -788,16 +740,10 @@ function RouteDisplay({ shipment }) {
    FORECAST CHART
 ========================================================= */
 
-function ForecastChart({ data, currentRate }) {
+function ForecastChart({ data }) {
   if (!data || data.length === 0) {
     return <EmptyChart />;
   }
-
-  const numericCurrentRate = Number(
-  currentRate ??
-    data?.[0]?.rate
-);
-  
 
   return (
     <ResponsiveContainer width="100%" height={350}>
@@ -818,14 +764,8 @@ function ForecastChart({ data, currentRate }) {
             x2="0"
             y2="1"
           >
-            <stop
-              offset="0%"
-              stopOpacity={0.35}
-            />
-            <stop
-              offset="100%"
-              stopOpacity={0.02}
-            />
+            <stop offset="0%" stopOpacity={0.35} />
+            <stop offset="100%" stopOpacity={0.02} />
           </linearGradient>
         </defs>
 
@@ -846,15 +786,13 @@ function ForecastChart({ data, currentRate }) {
         />
 
         <YAxis
-  tick={{
-    fill: "#8192aa",
-    fontSize: 11,
-  }}
-  domain={["auto", "auto"]}
-  tickFormatter={(value) =>
-    `$${value}`
-  }
-/>
+          tick={{
+            fill: "#8192aa",
+            fontSize: 11,
+          }}
+          domain={["auto", "auto"]}
+          tickFormatter={(value) => `$${value}`}
+        />
 
         <Tooltip
           contentStyle={{
@@ -865,32 +803,12 @@ function ForecastChart({ data, currentRate }) {
           }}
           formatter={(value) => [
             `$${Number(value).toFixed(2)} / MT`,
-            "Forecast Rate",
+            "Freight Rate",
           ]}
           labelFormatter={(label) =>
             `Date: ${label}`
           }
         />
-
-        {/* CURRENT RATE REFERENCE */}
-        {Number.isFinite(
-          numericCurrentRate
-        ) && (
-          <ReferenceLine
-            y={numericCurrentRate}
-            stroke="#fbbf24"
-            strokeDasharray="6 4"
-            strokeWidth={2}
-            label={{
-              value: `Current $${numericCurrentRate.toFixed(
-                2
-              )}`,
-              position: "insideTopRight",
-              fill: "#fbbf24",
-              fontSize: 10,
-            }}
-          />
-        )}
 
         <Area
           type="monotone"
@@ -1052,156 +970,7 @@ function DashboardPage({
           subtitle="Quantity × forecast rate"
           icon={Target}
         />
-            </div>
-
-      {forecastData.idleScenario && (
-        <Card style={{ marginBottom: "20px" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              marginBottom: "15px",
-            }}
-          >
-            <Activity size={21} />
-
-            <div
-              style={{
-                fontSize: "17px",
-                fontWeight: "750",
-              }}
-            >
-              Idle Scenario Management
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit,minmax(180px,1fr))",
-              gap: "16px",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  color: "#8192aa",
-                  fontSize: "11px",
-                }}
-              >
-                Employment Status
-              </div>
-
-              <div
-                style={{
-                  marginTop: "6px",
-                  fontSize: "19px",
-                  fontWeight: "800",
-                  color:
-                    forecastData.idleScenario.status ===
-                    "HIGH IDLE RISK"
-                      ? "#fb7185"
-                      : forecastData.idleScenario.status ===
-                        "IDLE RISK"
-                      ? "#fbbf24"
-                      : "#4ade80",
-                }}
-              >
-                {forecastData.idleScenario.status}
-              </div>
-            </div>
-
-            <div>
-              <div
-                style={{
-                  color: "#8192aa",
-                  fontSize: "11px",
-                }}
-              >
-                Idle Risk Score
-              </div>
-
-              <div
-                style={{
-                  marginTop: "6px",
-                  fontSize: "22px",
-                  fontWeight: "800",
-                }}
-              >
-                {forecastData.idleScenario.idle_score}
-                <span
-                  style={{
-                    fontSize: "12px",
-                    color: "#8192aa",
-                  }}
-                >
-                  {" "}
-                  / 100
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <div
-                style={{
-                  color: "#8192aa",
-                  fontSize: "11px",
-                }}
-              >
-                Demand − Supply Gap
-              </div>
-
-              <div
-                style={{
-                  marginTop: "6px",
-                  fontSize: "20px",
-                  fontWeight: "800",
-                }}
-              >
-                {forecastData.idleScenario.demand_supply_gap}
-              </div>
-            </div>
-
-            <div>
-              <div
-                style={{
-                  color: "#8192aa",
-                  fontSize: "11px",
-                }}
-              >
-                Recommended Action
-              </div>
-
-              <div
-                style={{
-                  marginTop: "6px",
-                  fontSize: "12px",
-                  lineHeight: "1.5",
-                  color: "#d7e0ec",
-                }}
-              >
-                {forecastData.idleScenario.recommended_action}
-              </div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              marginTop: "15px",
-              paddingTop: "13px",
-              borderTop:
-                "1px solid rgba(148,163,184,0.12)",
-              color: "#8192aa",
-              fontSize: "11px",
-            }}
-          >
-            Positioning guidance:{" "}
-            {forecastData.idleScenario.positioning_guidance}
-          </div>
-        </Card>
-      )}
+      </div>
 
       {forecastData.forecastRate !== null && (
         <div
@@ -1300,9 +1069,8 @@ function DashboardPage({
         </div>
 
         <ForecastChart
-  data={forecastData.forecastSeries}
-  currentRate={forecastData.currentRate}
-/>
+          data={forecastData.forecastSeries}
+        />
       </Card>
     </>
   );
@@ -1311,6 +1079,7 @@ function DashboardPage({
 /* =========================================================
    FREIGHT FORECAST
 ========================================================= */
+
 function FreightForecastPage({
   forecastData,
   shipment,
@@ -1320,106 +1089,7 @@ function FreightForecastPage({
 }) {
   const originPorts =
     originPortOptions[shipment.origin] || [];
-const entryWindow = (() => {
-  const series = forecastData.forecastSeries || [];
 
-  if (!Array.isArray(series) || series.length === 0) {
-    return {
-      status: "AWAITING FORECAST",
-      description:
-        "Generate a forecast to identify the projected market entry window.",
-    };
-  }
-
-  const rates = series
-    .map((item) => {
-      if (typeof item === "number") {
-        return Number(item);
-      }
-
-      return Number(item?.rate);
-    })
-    .filter(Number.isFinite);
-
-  if (rates.length < 2) {
-    return {
-      status: "AWAITING FORECAST",
-      description:
-        "More forecast days are required to identify a future market entry window.",
-    };
-  }
-
-  const currentRate = Number(forecastData.currentRate);
-
-  const baseRate = Number.isFinite(currentRate)
-    ? currentRate
-    : rates[0];
-
-  // Day 1 is the current/baseline forecast.
-  // Only future forecast days are evaluated for entry timing.
-  const futureRates = rates.slice(1);
-
-  const minimumRate = Math.min(...futureRates);
-
-  const futureMinimumIndex =
-    futureRates.indexOf(minimumRate);
-
-  const minimumDay =
-    futureMinimumIndex + 2;
-
-  const difference =
-    ((minimumRate - baseRate) / baseRate) * 100;
-
-  /*
-   * A meaningful future entry opportunity exists
-   * only when the projected future minimum is below
-   * the current baseline.
-   */
-  if (difference <= -3) {
-    return {
-      status: `POTENTIAL ENTRY — DAY ${minimumDay}`,
-      description:
-        `The model projects a future freight opportunity around day ${minimumDay}, with the projected rate approximately ${Math.abs(
-          difference
-        ).toFixed(1)}% below the current rate.`,
-      minimumRate,
-      minimumDay,
-    };
-  }
-
-  /*
-   * Future rates are materially higher than the
-   * current baseline.
-   */
-  if (difference >= 3) {
-    return {
-      status: "RISING MARKET — MONITOR ENTRY",
-      description:
-        `The lowest projected future rate is approximately ${difference.toFixed(
-          1
-        )}% above the current rate. Monitor the forecast before committing to a longer charter.`,
-      minimumRate,
-      minimumDay,
-    };
-  }
-
-  /*
-   * Future rates are close to the current baseline.
-   */
-  return {
-    status: "STABLE ENTRY WINDOW",
-    description:
-      `No significant future rate advantage is projected. The lowest future rate is ${formatMoney(
-        minimumRate
-      )} around day ${minimumDay}, approximately ${Math.abs(
-        difference
-      ).toFixed(1)}% ${
-        difference >= 0 ? "above" : "below"
-      } the current rate.`,
-    minimumRate,
-    minimumDay,
-  };
-})();
   return (
     <>
       <PageHeader
@@ -1552,94 +1222,6 @@ const entryWindow = (() => {
 
         <div
           style={{
-            marginTop: "22px",
-            paddingTop: "18px",
-            borderTop:
-              "1px solid rgba(148,163,184,0.12)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "15px",
-              fontWeight: "750",
-              marginBottom: "14px",
-            }}
-          >
-            Market Conditions
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit,minmax(180px,1fr))",
-              gap: "15px",
-            }}
-          >
-            <InputField
-              label="Fuel Price"
-              type="number"
-              value={shipment.fuelPrice}
-              onChange={(value) =>
-                setShipment({
-                  ...shipment,
-                  fuelPrice: Number(value),
-                })
-              }
-            />
-
-            <InputField
-              label="Commodity Price"
-              type="number"
-              value={shipment.commodityPrice}
-              onChange={(value) =>
-                setShipment({
-                  ...shipment,
-                  commodityPrice: Number(value),
-                })
-              }
-            />
-
-            <InputField
-  label="Port Congestion — Market Assumption (%)"
-  type="number"
-  value={shipment.portCongestion}
-  onChange={(value) =>
-    setShipment({
-      ...shipment,
-      portCongestion: Number(value),
-    })
-  }
-/>
-
-            <InputField
-              label="Demand Index"
-              type="number"
-              value={shipment.demandIndex}
-              onChange={(value) =>
-                setShipment({
-                  ...shipment,
-                  demandIndex: Number(value),
-                })
-              }
-            />
-
-            <InputField
-              label="Supply Index"
-              type="number"
-              value={shipment.supplyIndex}
-              onChange={(value) =>
-                setShipment({
-                  ...shipment,
-                  supplyIndex: Number(value),
-                })
-              }
-            />
-          </div>
-        </div>
-
-        <div
-          style={{
             marginTop: "18px",
             padding: "13px",
             borderRadius: "10px",
@@ -1735,333 +1317,6 @@ const entryWindow = (() => {
         />
       </div>
 
-      {/* MARKET ENTRY WINDOW */}
-      <Card style={{ marginTop: "20px" }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            marginBottom: "14px",
-          }}
-        >
-          <Target size={21} />
-
-          <div
-            style={{
-              fontSize: "18px",
-              fontWeight: "750",
-            }}
-          >
-            Market Entry Window
-          </div>
-        </div>
-
-        <div
-          style={{
-            padding: "16px",
-            borderRadius: "11px",
-            background:
-              "rgba(56,189,248,0.06)",
-            border:
-              "1px solid rgba(56,189,248,0.14)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "20px",
-              fontWeight: "800",
-              color:
-                entryWindow.status.startsWith(
-                  "POTENTIAL ENTRY"
-                )
-                  ? "#4ade80"
-                  : entryWindow.status.startsWith(
-                      "RISING MARKET"
-                    )
-                  ? "#fb7185"
-                  : entryWindow.status ===
-                    "AWAITING FORECAST"
-                  ? "#94a3b8"
-                  : "#fbbf24",
-            }}
-          >
-            {entryWindow.status}
-          </div>
-
-          <div
-            style={{
-              marginTop: "8px",
-              color: "#9aaac0",
-              fontSize: "13px",
-              lineHeight: "1.6",
-            }}
-          >
-            {entryWindow.description}
-          </div>
-
-          {entryWindow.minimumRate !==
-            undefined && (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit,minmax(160px,1fr))",
-                gap: "15px",
-                marginTop: "16px",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    color: "#8192aa",
-                    fontSize: "11px",
-                  }}
-                >
-                  Projected Minimum
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "5px",
-                    fontSize: "18px",
-                    fontWeight: "800",
-                  }}
-                >
-                  {formatMoney(
-                    entryWindow.minimumRate
-                  )}
-                </div>
-              </div>
-              <div
-  style={{
-    gridColumn: "1 / -1",
-    marginTop: "4px",
-  }}
->
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      color: "#8192aa",
-      fontSize: "9px",
-      marginBottom: "6px",
-    }}
-  >
-    <span>FORECAST START</span>
-
-    <span>
-      DAY {forecastData.forecastSeries?.length || "—"}
-    </span>
-  </div>
-
-  <div
-  style={{
-    height: "6px",
-    borderRadius: "999px",
-    background: "rgba(82,102,130,0.22)",
-    overflow: "hidden",
-    position: "relative",
-  }}
->
-  {/* Existing progress bar */}
-  <div
-    style={{
-      width: `${
-        forecastData.forecastSeries?.length &&
-        entryWindow.minimumDay
-          ? Math.min(
-              100,
-              Math.max(
-                0,
-                (
-                  entryWindow.minimumDay /
-                  forecastData.forecastSeries.length
-                ) * 100
-              )
-            )
-          : 0
-      }%`,
-      height: "100%",
-      borderRadius: "999px",
-      background:
-        "linear-gradient(90deg,#38bdf8,#4ade80)",
-    }}
-  />
-
-  {/* Predicted timing marker */}
-  <div
-    style={{
-      position: "absolute",
-      left: `${
-        forecastData.forecastSeries?.length &&
-        entryWindow.minimumDay
-          ? Math.min(
-              100,
-              Math.max(
-                0,
-                (
-                  entryWindow.minimumDay /
-                  forecastData.forecastSeries.length
-                ) * 100
-              )
-            )
-          : 0
-      }%`,
-      top: "-2px",
-      width: "10px",
-      height: "10px",
-      borderRadius: "50%",
-      background: "#ffffff",
-      border: "2px solid #4ade80",
-      transform: "translateX(-50%)",
-      boxSizing: "border-box",
-    }}
-  />
-</div>
-  <div
-  style={{
-    marginTop: "6px",
-    color: "#8192aa",
-    fontSize: "9px",
-    lineHeight: "1.5",
-  }}
->
-  Projected lowest future rate occurs around day{" "}
-  <strong style={{ color: "#cbd5e1" }}>
-    {entryWindow.minimumDay}
-  </strong>{" "}
-  of the forecast horizon.
-  {" "}
-  {entryWindow.status.startsWith("POTENTIAL ENTRY")
-    ? "This indicates a potential lower-rate entry point."
-    : entryWindow.status.startsWith("RISING MARKET")
-    ? "Future rates remain above the current rate, so continued monitoring is indicated."
-    : "The forecast does not show a significant future rate advantage."}
-</div>
-</div>
-
-              <div>
-                <div
-                  style={{
-                    color: "#8192aa",
-                    fontSize: "11px",
-                  }}
-                >
-                  Projected Timing
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "5px",
-                    fontSize: "18px",
-                    fontWeight: "800",
-                  }}
-                >
-                  Day {entryWindow.minimumDay}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </Card>
-
-                  {/* CHARTER PLANNING SIGNAL */}
-      {forecastData &&
-        (() => {
-          const charterSignal =
-            getCharterPlanningSignal(
-              shipment.horizon
-            );
-
-          return (
-            <Card style={{ marginTop: "20px" }}>
-              <div
-                style={{
-                  fontSize: "18px",
-                  fontWeight: "750",
-                }}
-              >
-                Charter Planning Signal
-              </div>
-
-              <div
-                style={{
-                  marginTop: "6px",
-                  color: "#8091aa",
-                  fontSize: "12px",
-                }}
-              >
-                Planning guidance based on the selected
-                forecast horizon.
-              </div>
-
-              <div
-                style={{
-                  marginTop: "14px",
-                  padding: "15px",
-                  borderRadius: "11px",
-                  background:
-                    "rgba(56,189,248,0.05)",
-                  border:
-                    "1px solid rgba(56,189,248,0.14)",
-                }}
-              >
-                <div
-                  style={{
-                    color: "#7dd3fc",
-                    fontSize: "9px",
-                    fontWeight: "800",
-                    letterSpacing: "0.08em",
-                  }}
-                >
-                  PLANNING HORIZON
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "6px",
-                    fontSize: "20px",
-                    fontWeight: "800",
-                    color: "#ffffff",
-                  }}
-                >
-                  {charterSignal.type}
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "7px",
-                    color: "#9aaac0",
-                    fontSize: "12px",
-                    lineHeight: "1.5",
-                  }}
-                >
-                  {charterSignal.description}
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "10px",
-                    color: "#8192aa",
-                    fontSize: "11px",
-                  }}
-                >
-                  Forecast horizon:{" "}
-                  <strong
-                    style={{
-                      color: "#cbd5e1",
-                    }}
-                  >
-                    {shipment.horizon} days
-                  </strong>
-                </div>
-              </div>
-            </Card>
-          );
-        })()}
-
-      {/* XGBOOST FREIGHT RATE FORECAST */}
       <Card style={{ marginTop: "20px" }}>
         <div style={{ marginBottom: "18px" }}>
           <div
@@ -2092,6 +1347,7 @@ const entryWindow = (() => {
     </>
   );
 }
+
 /* =========================================================
    WHAT-IF
 ========================================================= */
@@ -2127,33 +1383,26 @@ function WhatIfPage({
     Number(forecastData.forecastRate) || 0;
 
   const scenarioRate =
-  Number(
     scenarioResult?.forecast?.forecast_rate ??
-    scenarioResult?.forecast_rate
-  );
+    scenarioResult?.forecast_rate ??
+    baseRate;
 
-const finalScenarioRate = Number.isFinite(
-  scenarioRate
-)
-  ? scenarioRate
-  : baseRate;
+  const baseCost =
+    baseQuantity * baseRate;
 
-const baseCost =
-  baseQuantity * baseRate;
+  const scenarioCost =
+    scenarioQuantity * scenarioRate;
 
-const scenarioCost =
-  scenarioQuantity * finalScenarioRate;
+  const costDifference =
+    scenarioCost - baseCost;
 
-const costDifference =
-  scenarioCost - baseCost;
+  const savings =
+    baseCost - scenarioCost;
 
-const savings =
-  baseCost - scenarioCost;
-
-const impactPercent =
-  baseCost > 0
-    ? (costDifference / baseCost) * 100
-    : 0;
+  const impactPercent =
+    baseCost > 0
+      ? (costDifference / baseCost) * 100
+      : 0;
 
   function runScenario() {
     onScenario({
@@ -2169,19 +1418,10 @@ const impactPercent =
     scenarioResult?.forecast_series ||
     [];
 
-  const scenarioVolatility = Number(
-  scenarioResult?.risk?.volatility ??
-  scenarioResult?.volatility
-);
-
-const scenarioRisk =
-  !Number.isFinite(scenarioVolatility)
-    ? "—"
-    : scenarioVolatility >= 0.5
-      ? "HIGH"
-      : scenarioVolatility >= 0.2
-        ? "MODERATE"
-        : "LOW";
+  const scenarioRisk =
+    scenarioResult?.risk?.level ||
+    scenarioResult?.risk_level ||
+    forecastData.riskLevel;
 
   return (
     <>
@@ -2685,163 +1925,32 @@ function ProcureSensePage({
         </Card>
 
         <Card>
-  <Package size={22} />
+          <Package size={22} />
 
-  <div
-    style={{
-      marginTop: "15px",
-      fontWeight: "750",
-    }}
-  >
-    Forecast Horizon
-  </div>
+          <div
+            style={{
+              marginTop: "15px",
+              fontWeight: "750",
+            }}
+          >
+            Forecast Horizon
+          </div>
 
-  <div
-    style={{
-      fontSize: "22px",
-      fontWeight: "800",
-      marginTop: "15px",
-    }}
-  >
-    {forecastData.forecastSeries.length ||
-      "—"}{" "}
-    days
-  </div>
-</Card>
-
-<Card>
-  <Activity size={22} />
-
-  <div
-    style={{
-      marginTop: "15px",
-      fontWeight: "750",
-    }}
-  >
-    Idle Scenario
-  </div>
-
-  <div
-    style={{
-      fontSize: "20px",
-      fontWeight: "800",
-      marginTop: "15px",
-      color:
-        forecastData.idleScenario?.status ===
-        "HIGH IDLE RISK"
-          ? "#fb7185"
-          : forecastData.idleScenario?.status ===
-            "IDLE RISK"
-          ? "#fbbf24"
-          : "#4ade80",
-    }}
-  >
-    {forecastData.idleScenario?.status || "—"}
-  </div>
-
-  <div
-    style={{
-      color: "#8192aa",
-      fontSize: "11px",
-      marginTop: "7px",
-    }}
-  >
-    Score:{" "}
-    {forecastData.idleScenario?.idle_score ??
-      "—"}
-    /100
-  </div>
-  <div
-  style={{
-    marginTop: "14px",
-    paddingTop: "13px",
-    borderTop:
-      "1px solid rgba(82,102,130,0.18)",
-  }}
->
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      gap: "12px",
-      flexWrap: "wrap",
-      color: "#8192aa",
-      fontSize: "10px",
-    }}
-  >
-    <span>
-      Demand–Supply Gap:{" "}
-      <strong style={{ color: "#cbd5e1" }}>
-        {forecastData.idleScenario
-          ?.demand_supply_gap ?? "—"}
-      </strong>
-    </span>
-
-    <span>
-      Employment Signal:{" "}
-      <strong
-        style={{
-          color:
-            forecastData.idleScenario?.idle_score >= 70
-              ? "#fb7185"
-              : forecastData.idleScenario?.idle_score >= 40
-              ? "#fbbf24"
-              : "#4ade80",
-        }}
-      >
-        {forecastData.idleScenario?.status || "—"}
-      </strong>
-    </span>
-  </div>
-
-  {Array.isArray(
-    forecastData.idleScenario?.factors
-  ) &&
-    forecastData.idleScenario.factors.length > 0 && (
-      <div
-        style={{
-          marginTop: "10px",
-          color: "#9aaac0",
-          fontSize: "10px",
-          lineHeight: "1.6",
-        }}
-      >
-        {forecastData.idleScenario.factors.map(
-          (factor, index) => (
-            <div key={index}>
-              • {factor}
-            </div>
-          )
-        )}
+          <div
+            style={{
+              fontSize: "22px",
+              fontWeight: "800",
+              marginTop: "15px",
+            }}
+          >
+            {forecastData.forecastSeries.length ||
+              "—"}{" "}
+            days
+          </div>
+        </Card>
       </div>
-    )}
 
-  {forecastData.idleScenario?.recommended_action && (
-    <div
-      style={{
-        marginTop: "11px",
-        padding: "10px 11px",
-        borderRadius: "9px",
-        background:
-          "rgba(56,189,248,0.05)",
-        border:
-          "1px solid rgba(56,189,248,0.12)",
-        color: "#9fb0c7",
-        fontSize: "10px",
-        lineHeight: "1.5",
-      }}
-    >
-      <strong style={{ color: "#7dd3fc" }}>
-        Recommended action:
-      </strong>{" "}
-      {forecastData.idleScenario.recommended_action}
-    </div>
-  )}
-</div>
-</Card>
-</div>
-
-<Card style={{ marginTop: "20px" }}>
+      <Card style={{ marginTop: "20px" }}>
         <div
           style={{
             fontSize: "17px",
@@ -2873,21 +1982,11 @@ function RiskRadarPage({ forecastData }) {
   );
 
   const riskScore = Math.min(
-  100,
-  Math.round(
-    volatility * 25 +
-    change * 10
-  )
-);
-
-const riskLevel =
-  riskScore >= 70
-    ? "CRITICAL"
-    : riskScore >= 50
-    ? "HIGH"
-    : riskScore >= 30
-    ? "MODERATE"
-    : "LOW";
+    100,
+    Math.round(
+      volatility * 12 + change * 8
+    )
+  );
 
   const chartData = [
     {
@@ -3065,14 +2164,12 @@ const riskLevel =
 function VesselMatchPage({
   vesselComparison,
   loading,
-  shipment,
-  onCompare,
 }) {
   return (
     <>
       <PageHeader
         title="VesselMatch"
-        description="Compare vessel types using freight forecast, port compatibility and market risk."
+        description="Compare vessel types using the same route, cargo and market scenario."
       />
 
       <Card>
@@ -3092,7 +2189,7 @@ function VesselMatchPage({
               fontWeight: "800",
             }}
           >
-            Vessel Intelligence
+            Model-Based Vessel Comparison
           </div>
         </div>
 
@@ -3103,893 +2200,105 @@ function VesselMatchPage({
             marginBottom: "20px",
           }}
         >
-          PORTWISE compares each vessel against the current
-          shipment route, forecast and destination-port constraints.
+          Each vessel type is evaluated through
+          the forecasting engine.
         </div>
 
-        {/* CURRENT SHIPMENT */}
-        <div
-          style={{
-            padding: "16px",
-            borderRadius: "13px",
-            background: "rgba(56,189,248,0.06)",
-            border: "1px solid rgba(56,189,248,0.18)",
-            marginBottom: "18px",
-          }}
-        >
+        {loading && (
           <div
             style={{
-              fontSize: "10px",
-              color: "#8192aa",
-              marginBottom: "8px",
-              letterSpacing: "0.08em",
-            }}
-          >
-            CURRENT SHIPMENT
-          </div>
-
-          <div
-            style={{
-              fontSize: "15px",
-              fontWeight: "800",
-            }}
-          >
-            {shipment.origin} · {shipment.originPort}
-            {" → "}
-            {shipment.destinationCountry} ·{" "}
-            {shipment.destination}
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: "20px",
-              flexWrap: "wrap",
-              marginTop: "10px",
-              color: "#9fb0c7",
-              fontSize: "12px",
-            }}
-          >
-            <span>
-              Cargo: <strong>{shipment.cargo}</strong>
-            </span>
-
-            <span>
-              Quantity:{" "}
-              <strong>
-                {formatNumber(shipment.quantity)} MT
-              </strong>
-            </span>
-
-            <span>
-              Horizon:{" "}
-              <strong>{shipment.horizon} Days</strong>
-            </span>
-          </div>
-        </div>
-        {/* COMPARISON BASIS */}
-<div
-  style={{
-    marginBottom: "18px",
-    padding: "12px 14px",
-    borderRadius: "10px",
-    background: "rgba(255,255,255,0.02)",
-    border:
-      "1px solid rgba(82,102,130,0.18)",
-    color: "#8192aa",
-    fontSize: "10px",
-    lineHeight: "1.6",
-  }}
->
-  <strong
-    style={{
-      color: "#9fb0c7",
-    }}
-  >
-    COMPARISON BASIS
-  </strong>
-
-  {" · "}
-
-  Forecast rate + market risk + destination-port
-  infrastructure constraints are evaluated for each
-  vessel type using the current shipment inputs.
-</div>
-
-        {/* ACTION */}
-        <button
-          type="button"
-          onClick={onCompare}
-          disabled={loading}
-          style={{
-            width: "100%",
-            padding: "13px 16px",
-            borderRadius: "10px",
-            border: "1px solid rgba(56,189,248,0.35)",
-            background: loading
-              ? "rgba(56,189,248,0.08)"
-              : "rgba(56,189,248,0.14)",
-            color: "#7dd3fc",
-            fontWeight: "800",
-            cursor: loading
-              ? "not-allowed"
-              : "pointer",
-            marginBottom: "22px",
-          }}
-        >
-          {loading
-            ? "CALCULATING VESSEL PREDICTIONS..."
-            : "COMPARE ALL VESSEL TYPES"}
-        </button>
-
-        {/* RESULTS */}
-{vesselComparison.length === 0 ? (
-  <div
-    style={{
-      padding: "30px",
-      textAlign: "center",
-      borderRadius: "12px",
-      border:
-        "1px dashed rgba(82,102,130,0.35)",
-      color: "#8192aa",
-      fontSize: "12px",
-    }}
-  >
-    Click <strong>Compare All Vessel Types</strong>{" "}
-    to run the forecasting model for every vessel.
-  </div>
-) : (
-  <div>
-    {/* COMPARISON SUMMARY */}
-    {(() => {
-      const validVessels =
-        vesselComparison.filter(
-          (item) =>
-            Number.isFinite(
-              Number(item.forecast_rate)
-            )
-        );
-
-      const lowestRateVessel =
-        validVessels.length > 0
-          ? validVessels.reduce(
-              (lowest, current) =>
-                Number(current.forecast_rate) <
-                Number(lowest.forecast_rate)
-                  ? current
-                  : lowest
-            )
-          : null;
-
-      const suitableCount =
-        vesselComparison.filter(
-          (item) =>
-            String(item.port_fit || "")
-              .toUpperCase() === "SUITABLE"
-        ).length;
-
-      const reviewCount =
-        vesselComparison.filter(
-          (item) =>
-            String(item.decision || "")
-              .toUpperCase() !== "SUITABLE"
-        ).length;
-
-      const elevatedRiskCount =
-        vesselComparison.filter((item) => {
-          const risk = String(
-            item.risk_level ||
-              item.riskLevel ||
-              ""
-          ).toUpperCase();
-
-          return [
-            "HIGH",
-            "CRITICAL",
-            "VERY HIGH",
-          ].includes(risk);
-        }).length;
-
-      return (
-        <div
-          style={{
-            marginBottom: "18px",
-            padding: "16px",
-            borderRadius: "13px",
-            background:
-              "linear-gradient(145deg, rgba(56,189,248,0.07), rgba(255,255,255,0.02))",
-            border:
-              "1px solid rgba(56,189,248,0.20)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "10px",
               color: "#7dd3fc",
-              fontWeight: "800",
-              letterSpacing: "0.08em",
-              marginBottom: "12px",
+              fontSize: "12px",
+              marginBottom: "15px",
             }}
           >
-            MODEL COMPARISON SUMMARY
+            Calculating vessel scenarios...
           </div>
+        )}
 
+        {vesselComparison.length === 0 ? (
+          <EmptyChart message="Generate a forecast first to compare vessel types." />
+        ) : (
           <div
             style={{
               display: "grid",
-              gridTemplateColumns:
-                "repeat(4, minmax(0, 1fr))",
-              gap: "10px",
+              gap: "12px",
             }}
           >
-            {/* LOWEST FORECAST */}
-            <div
-              style={{
-                padding: "12px",
-                borderRadius: "10px",
-                background:
-                  "rgba(255,255,255,0.025)",
-              }}
-            >
+            {vesselComparison.map((vessel) => (
               <div
+                key={vessel.type}
                 style={{
-                  color: "#8192aa",
-                  fontSize: "9px",
-                }}
-              >
-                LOWEST FORECAST
-              </div>
-
-              <div
-                style={{
-                  marginTop: "5px",
-                  fontSize: "16px",
-                  fontWeight: "800",
-                }}
-              >
-                {lowestRateVessel
-                  ? formatMoney(
-                      lowestRateVessel.forecast_rate
-                    )
-                  : "—"}
-              </div>
-
-              <div
-                style={{
-                  marginTop: "3px",
-                  color: "#8192aa",
-                  fontSize: "9px",
-                }}
-              >
-                {lowestRateVessel
-                  ? lowestRateVessel.vessel
-                  : "No valid forecast"}
-              </div>
-            </div>
-
-            {/* PORT COMPATIBILITY */}
-            <div
-              style={{
-                padding: "12px",
-                borderRadius: "10px",
-                background:
-                  "rgba(255,255,255,0.025)",
-              }}
-            >
-              <div
-                style={{
-                  color: "#8192aa",
-                  fontSize: "9px",
-                }}
-              >
-                PORT COMPATIBLE
-              </div>
-
-              <div
-                style={{
-                  marginTop: "5px",
-                  fontSize: "16px",
-                  fontWeight: "800",
-                  color: "#4ade80",
-                }}
-              >
-                {suitableCount}/
-                {vesselComparison.length}
-              </div>
-
-              <div
-                style={{
-                  marginTop: "3px",
-                  color: "#8192aa",
-                  fontSize: "9px",
-                }}
-              >
-                Based on constraint screen
-              </div>
-            </div>
-
-            {/* REVIEW REQUIRED */}
-            <div
-              style={{
-                padding: "12px",
-                borderRadius: "10px",
-                background:
-                  "rgba(255,255,255,0.025)",
-              }}
-            >
-              <div
-                style={{
-                  color: "#8192aa",
-                  fontSize: "9px",
-                }}
-              >
-                REVIEW REQUIRED
-              </div>
-
-              <div
-                style={{
-                  marginTop: "5px",
-                  fontSize: "16px",
-                  fontWeight: "800",
-                  color:
-                    reviewCount > 0
-                      ? "#fbbf24"
-                      : "#4ade80",
-                }}
-              >
-                {reviewCount}
-              </div>
-
-              <div
-                style={{
-                  marginTop: "3px",
-                  color: "#8192aa",
-                  fontSize: "9px",
-                }}
-              >
-                Port or market conditions
-              </div>
-            </div>
-
-            {/* RISK REVIEW */}
-            <div
-              style={{
-                padding: "12px",
-                borderRadius: "10px",
-                background:
-                  "rgba(255,255,255,0.025)",
-              }}
-            >
-              <div
-                style={{
-                  color: "#8192aa",
-                  fontSize: "9px",
-                }}
-              >
-                ELEVATED RISK
-              </div>
-
-              <div
-                style={{
-                  marginTop: "5px",
-                  fontSize: "16px",
-                  fontWeight: "800",
-                  color:
-                    elevatedRiskCount > 0
-                      ? "#fb7185"
-                      : "#4ade80",
-                }}
-              >
-                {elevatedRiskCount}
-              </div>
-
-              <div
-                style={{
-                  marginTop: "3px",
-                  color: "#8192aa",
-                  fontSize: "9px",
-                }}
-              >
-                High / critical risk cases
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    })()}
-
-    {/* VESSEL RESULTS */}
-    <div
-      style={{
-        display: "grid",
-        gap: "12px",
-      }}
-    >
-      {vesselComparison.map((vessel) => {
-        const risk =
-          vessel.risk_level ||
-          vessel.riskLevel ||
-          "—";
-
-        const portFit =
-          vessel.port_fit ||
-          "CHECK REQUIRED";
-
-        const decision =
-          vessel.decision ||
-          "REVIEW REQUIRED";
-
-        const portScore =
-          Number.isFinite(
-            Number(vessel.port_score)
-          )
-            ? Number(vessel.port_score)
-            : 0;
-
-        const profile =
-          vessel.vessel_profile || {};
-
-        return (
-          <div
-            key={vessel.vessel}
-            style={{
-              padding: "17px",
-              borderRadius: "13px",
-              background:
-                "rgba(255,255,255,0.025)",
-              border:
-                "1px solid rgba(82,102,130,0.25)",
-            }}
-          >
-            {/* TOP ROW */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent:
-                  "space-between",
-                alignItems: "center",
-                gap: "15px",
-                marginBottom: "16px",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    fontWeight: "800",
-                    fontSize: "15px",
-                  }}
-                >
-                  {vessel.vessel}
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "4px",
-                    color: "#8192aa",
-                    fontSize: "11px",
-                  }}
-                >
-                  Vessel forecast scenario
-                </div>
-              </div>
-
-              <div
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: "8px",
+                  padding: "17px",
+                  borderRadius: "13px",
                   background:
-                    decision ===
-                    "SUITABLE"
-                      ? "rgba(74,222,128,0.10)"
-                      : "rgba(251,191,36,0.10)",
+                    "rgba(255,255,255,0.025)",
                   border:
-                    decision ===
-                    "SUITABLE"
-                      ? "1px solid rgba(74,222,128,0.25)"
-                      : "1px solid rgba(251,191,36,0.25)",
-                  color:
-                    decision ===
-                    "SUITABLE"
-                      ? "#4ade80"
-                      : "#fbbf24",
-                  fontSize: "10px",
-                  fontWeight: "800",
+                    "1px solid rgba(82,102,130,0.25)",
+                  display: "grid",
+                  gridTemplateColumns:
+                    "1fr 1fr 1fr",
+                  gap: "15px",
+                  alignItems: "center",
                 }}
               >
-                {decision}
-              </div>
-            </div>
+                <div>
+                  <div
+                    style={{
+                      fontWeight: "800",
+                    }}
+                  >
+                    {vessel.type}
+                  </div>
 
-            {/* METRICS */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(4, minmax(0, 1fr))",
-                gap: "10px",
-              }}
-            >
-              {/* FREIGHT */}
-              <div
-                style={{
-                  padding: "12px",
-                  borderRadius: "10px",
-                  background:
-                    "rgba(255,255,255,0.025)",
-                }}
-              >
-                <div
-                  style={{
-                    color: "#8192aa",
-                    fontSize: "9px",
-                  }}
-                >
-                  FORECAST RATE
+                  <div
+                    style={{
+                      marginTop: "5px",
+                      color: "#8192aa",
+                      fontSize: "11px",
+                    }}
+                  >
+                    Vessel type scenario
+                  </div>
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      color: "#8192aa",
+                      fontSize: "10px",
+                    }}
+                  >
+                    FORECAST RATE
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: "5px",
+                      fontSize: "20px",
+                      fontWeight: "800",
+                    }}
+                  >
+                    {formatMoney(
+                      vessel.forecastRate
+                    )}
+                  </div>
                 </div>
 
                 <div
                   style={{
-                    marginTop: "5px",
-                    fontSize: "18px",
-                    fontWeight: "800",
+                    textAlign: "right",
+                    color: "#7dd3fc",
+                    fontWeight: "750",
+                    fontSize: "12px",
                   }}
                 >
-                  {formatMoney(
-                    vessel.forecast_rate
-                  )}
-                </div>
-
-                <div
-                  style={{
-                    color: "#8192aa",
-                    fontSize: "9px",
-                    marginTop: "2px",
-                  }}
-                >
-                  USD / MT
-                </div>
-              </div>
-              <div
-  style={{
-    marginTop: "9px",
-    height: "4px",
-    borderRadius: "999px",
-    background: "rgba(82,102,130,0.20)",
-    overflow: "hidden",
-  }}
->
-  <div
-    style={{
-      width: `${
-        (() => {
-          const rates = vesselComparison
-            .map((item) =>
-              Number(item.forecast_rate)
-            )
-            .filter(Number.isFinite);
-
-          if (
-            rates.length === 0 ||
-            !Number.isFinite(
-              Number(vessel.forecast_rate)
-            )
-          ) {
-            return 0;
-          }
-
-          const min = Math.min(...rates);
-          const max = Math.max(...rates);
-
-          if (max === min) {
-            return 100;
-          }
-
-          return (
-            25 +
-            (
-              (Number(vessel.forecast_rate) - min) /
-              (max - min)
-            ) *
-              75
-          );
-        })()
-      }%`,
-      height: "100%",
-      borderRadius: "999px",
-      background:
-        "linear-gradient(90deg, #38bdf8, #0ea5e9)",
-    }}
-  />
-</div>
-
-              {/* PORT FIT */}
-              <div
-                style={{
-                  padding: "12px",
-                  borderRadius: "10px",
-                  background:
-                    "rgba(255,255,255,0.025)",
-                }}
-              >
-                <div
-                  style={{
-                    color: "#8192aa",
-                    fontSize: "9px",
-                  }}
-                >
-                  PORT FIT
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "5px",
-                    fontSize: "14px",
-                    fontWeight: "800",
-                    color:
-                      portFit ===
-                      "SUITABLE"
-                        ? "#4ade80"
-                        : "#fbbf24",
-                  }}
-                >
-                  {portFit}
-                </div>
-
-                <div
-                  style={{
-                    color: "#8192aa",
-                    fontSize: "9px",
-                    marginTop: "3px",
-                  }}
-                >
-                  Constraint {portScore}/100
+                  {vessel.riskLevel || "—"}
                 </div>
               </div>
-
-              {/* RISK */}
-              <div
-                style={{
-                  padding: "12px",
-                  borderRadius: "10px",
-                  background:
-                    "rgba(255,255,255,0.025)",
-                }}
-              >
-                <div
-                  style={{
-                    color: "#8192aa",
-                    fontSize: "9px",
-                  }}
-                >
-                  MARKET RISK
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "5px",
-                    fontSize: "14px",
-                    fontWeight: "800",
-                    color:
-                      risk === "Low"
-                        ? "#4ade80"
-                        : risk === "Moderate"
-                        ? "#fbbf24"
-                        : "#fb7185",
-                  }}
-                >
-                  {risk}
-                </div>
-
-                <div
-                  style={{
-                    color: "#8192aa",
-                    fontSize: "9px",
-                    marginTop: "3px",
-                  }}
-                >
-                  Volatility{" "}
-                  {Number(
-                    vessel.volatility
-                  ).toFixed(2)}
-                </div>
-              </div>
-
-              {/* CHANGE */}
-              <div
-                style={{
-                  padding: "12px",
-                  borderRadius: "10px",
-                  background:
-                    "rgba(255,255,255,0.025)",
-                }}
-              >
-                <div
-                  style={{
-                    color: "#8192aa",
-                    fontSize: "9px",
-                  }}
-                >
-                  FORECAST CHANGE
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "5px",
-                    fontSize: "14px",
-                    fontWeight: "800",
-                  }}
-                >
-                  {Number(
-                    vessel.change_percent
-                  ) >= 0
-                    ? "+"
-                    : ""}
-                  {Number(
-                    vessel.change_percent
-                  ).toFixed(2)}
-                  %
-                </div>
-
-                <div
-                  style={{
-                    color: "#8192aa",
-                    fontSize: "9px",
-                    marginTop: "3px",
-                  }}
-                >
-                  vs current forecast
-                </div>
-              </div>
-            </div>
-
-            {/* VESSEL DIMENSIONS */}
-            <div
-              style={{
-                display: "flex",
-                gap: "18px",
-                flexWrap: "wrap",
-                marginTop: "13px",
-                paddingTop: "12px",
-                borderTop:
-                  "1px solid rgba(82,102,130,0.18)",
-                color: "#8192aa",
-                fontSize: "10px",
-              }}
-            >
-              <span>
-                LOA:{" "}
-                <strong>
-                  {profile.loa_m ?? "—"} m
-                </strong>
-              </span>
-
-              <span>
-                Beam:{" "}
-                <strong>
-                  {profile.beam_m ?? "—"} m
-                </strong>
-              </span>
-
-              <span>
-                Draft:{" "}
-                <strong>
-                  {profile.draft_m ?? "—"} m
-                </strong>
-              </span>
-
-              <span>
-                Cargo:{" "}
-                <strong>
-                  {vessel.cargo_fit ||
-                     "Included in forecast"}
-                </strong>
-              </span>
-            </div>
-            {/* CONSTRAINT CHECK */}
-<div
-  style={{
-    marginTop: "9px",
-    paddingTop: "9px",
-    borderTop:
-      "1px solid rgba(82,102,130,0.12)",
-    color: "#8192aa",
-    fontSize: "10px",
-  }}
->
-  <span>
-    Infrastructure screen:{" "}
-    <strong
-      style={{
-        color:
-          portFit === "SUITABLE"
-            ? "#4ade80"
-            : "#fbbf24",
-      }}
-    >
-      {portFit}
-    </strong>
-  </span>
-
-  {Array.isArray(vessel.port_reasons) &&
-    vessel.port_reasons.length > 0 && (
-      <span>
-        {" · "}
-        {vessel.port_reasons.join(" · ")}
-      </span>
-    )}
-</div>
-            {/* DECISION FACTORS */}
-{Array.isArray(vessel.factors) &&
-  vessel.factors.length > 0 && (
-    <div
-      style={{
-        marginTop: "12px",
-        padding: "12px",
-        borderRadius: "10px",
-        background: "rgba(56,189,248,0.04)",
-        border:
-          "1px solid rgba(56,189,248,0.12)",
-      }}
-    >
-      <div
-        style={{
-          color: "#7dd3fc",
-          fontSize: "9px",
-          fontWeight: "800",
-          letterSpacing: "0.08em",
-          marginBottom: "7px",
-        }}
-      >
-        DECISION FACTORS
-      </div>
-
-      <div
-        style={{
-          display: "grid",
-          gap: "5px",
-        }}
-      >
-        {vessel.factors.map(
-          (factor, index) => (
-            <div
-              key={`${vessel.vessel}-factor-${index}`}
-              style={{
-                color: "#9aaac0",
-                fontSize: "10px",
-                lineHeight: "1.5",
-              }}
-            >
-              • {factor}
-            </div>
-          )
-        )}
-      </div>
-    </div>
-  )}
-
-            {/* PORT REASONS */}
-            {Array.isArray(
-              vessel.port_reasons
-            ) &&
-            vessel.port_reasons.length > 0 && (
-              <div
-                style={{
-                  marginTop: "10px",
-                  color: "#fbbf24",
-                  fontSize: "10px",
-                }}
-              >
-                {vessel.port_reasons.join(
-                  " · "
-                )}
-              </div>
-            )}
+            ))}
           </div>
-        );
-      })}
-    </div>
-  </div>
-)}
+        )}
       </Card>
     </>
   );
@@ -4056,120 +2365,6 @@ function VoyageDigitalTwinPage({
           />
         </div>
       </Card>
-            {forecastData.idleScenario && (
-        <Card style={{ marginBottom: "20px" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              marginBottom: "15px",
-            }}
-          >
-            <Activity size={21} />
-
-            <div
-              style={{
-                fontSize: "17px",
-                fontWeight: "750",
-              }}
-            >
-              Idle Scenario Management
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit,minmax(180px,1fr))",
-              gap: "16px",
-            }}
-          >
-            <div>
-              <div style={{ color: "#8192aa", fontSize: "11px" }}>
-                Employment Status
-              </div>
-
-              <div
-                style={{
-                  marginTop: "6px",
-                  fontSize: "19px",
-                  fontWeight: "800",
-                  color:
-                    forecastData.idleScenario.status ===
-                    "HIGH IDLE RISK"
-                      ? "#fb7185"
-                      : forecastData.idleScenario.status ===
-                        "IDLE RISK"
-                      ? "#fbbf24"
-                      : "#4ade80",
-                }}
-              >
-                {forecastData.idleScenario.status}
-              </div>
-            </div>
-
-            <div>
-              <div style={{ color: "#8192aa", fontSize: "11px" }}>
-                Idle Risk Score
-              </div>
-
-              <div
-                style={{
-                  marginTop: "6px",
-                  fontSize: "22px",
-                  fontWeight: "800",
-                }}
-              >
-                {forecastData.idleScenario.idle_score}
-                <span
-                  style={{
-                    fontSize: "12px",
-                    color: "#8192aa",
-                  }}
-                >
-                  {" "}
-                  / 100
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <div style={{ color: "#8192aa", fontSize: "11px" }}>
-                Demand − Supply Gap
-              </div>
-
-              <div
-                style={{
-                  marginTop: "6px",
-                  fontSize: "20px",
-                  fontWeight: "800",
-                }}
-              >
-                {forecastData.idleScenario.demand_supply_gap}
-              </div>
-            </div>
-
-            <div>
-              <div style={{ color: "#8192aa", fontSize: "11px" }}>
-                Recommended Action
-              </div>
-
-              <div
-                style={{
-                  marginTop: "6px",
-                  fontSize: "12px",
-                  lineHeight: "1.5",
-                  color: "#d7e0ec",
-                }}
-              >
-                {forecastData.idleScenario.recommended_action}
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
 
       <Card style={{ marginTop: "20px" }}>
         <div
@@ -4201,49 +2396,9 @@ function PortIntelligencePage({
   const chartData = portComparison.map(
     (item) => ({
       name: item.port,
-      rate: Number(item.forecast_rate) || 0,
+      rate: item.forecastRate,
     })
   );
-
-  const getPortStatus = (port) => {
-    const status =
-      port.constraint_status ||
-      port.port_status ||
-      "CHECK REQUIRED";
-
-    const normalized = String(status).toUpperCase();
-
-    if (
-      normalized === "CLEAR" ||
-      normalized === "SUITABLE"
-    ) {
-      return {
-        label: "SUITABLE",
-        color: "#4ade80",
-        background: "rgba(74,222,128,0.10)",
-        border: "rgba(74,222,128,0.25)",
-      };
-    }
-
-    if (
-      normalized === "WARNING" ||
-      normalized === "LIMITED"
-    ) {
-      return {
-        label: "LIMITED",
-        color: "#fbbf24",
-        background: "rgba(251,191,36,0.10)",
-        border: "rgba(251,191,36,0.25)",
-      };
-    }
-
-    return {
-      label: "CHECK REQUIRED",
-      color: "#fb7185",
-      background: "rgba(251,113,133,0.10)",
-      border: "rgba(251,113,133,0.25)",
-    };
-  };
 
   return (
     <>
@@ -4314,233 +2469,62 @@ function PortIntelligencePage({
                 marginTop: "15px",
               }}
             >
-              {portComparison.map((port) => {
-                const status = getPortStatus(port);
-
-                return (
+              {portComparison.map((port) => (
+                <div
+                  key={port.port}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "1fr 1fr 120px",
+                    gap: "15px",
+                    alignItems: "center",
+                    padding: "14px",
+                    borderRadius: "11px",
+                    background:
+                      "rgba(255,255,255,0.025)",
+                  }}
+                >
                   <div
-                    key={port.port}
                     style={{
-                      display: "grid",
-                      gridTemplateColumns:
-                        "1fr 1fr 1fr 120px",
-                      gap: "15px",
-                      alignItems: "center",
-                      padding: "14px",
-                      borderRadius: "11px",
-                      background:
-                        "rgba(255,255,255,0.025)",
+                      fontWeight: "750",
                     }}
                   >
-                    <div>
-                      <div
-                        style={{
-                          fontWeight: "800",
-                          fontSize: "14px",
-                        }}
-                      >
-                        {port.port}
-                      </div>
-
-                      <div
-                        style={{
-                          color: "#8192aa",
-                          fontSize: "11px",
-                          marginTop: "4px",
-                        }}
-                      >
-                        East Coast India
-                      </div>
-                    </div>
-
-                    <div>
-                      <div
-                        style={{
-                          color: "#8192aa",
-                          fontSize: "10px",
-                          marginBottom: "4px",
-                        }}
-                      >
-                        FORECAST RATE
-                      </div>
-
-                      <div
-                        style={{
-                          fontWeight: "800",
-                          fontSize: "15px",
-                        }}
-                      >
-                        {formatMoney(
-                          port.forecast_rate
-                        )}{" "}
-                        / MT
-                      </div>
-                    </div>
-
-                    <div>
-                      <div
-                        style={{
-                          color: "#8192aa",
-                          fontSize: "10px",
-                          marginBottom: "4px",
-                        }}
-                      >
-                        FORECAST RANGE
-                      </div>
-
-                      <div
-                        style={{
-                          fontSize: "12px",
-                        }}
-                      >
-                        {formatMoney(
-                          port.minimum_rate
-                        )}
-                        {" – "}
-                        {formatMoney(
-                          port.maximum_rate
-                        )}
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        textAlign: "right",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: "11px",
-                          color: "#8192aa",
-                          marginBottom: "4px",
-                        }}
-                      >
-                        CHANGE
-                      </div>
-
-                      <div
-                        style={{
-                          fontWeight: "800",
-                          color:
-                            Number(
-                              port.change_percent
-                            ) > 0
-                              ? "#fb7185"
-                              : "#4ade80",
-                        }}
-                      >
-                        {formatPercent(
-                          port.change_percent
-                        )}
-                      </div>
-                    </div>
+                    {port.port}
                   </div>
-                );
-              })}
-            </div>
 
-            <div
-              style={{
-                marginTop: "24px",
-                paddingTop: "18px",
-                borderTop:
-                  "1px solid rgba(255,255,255,0.08)",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "17px",
-                  fontWeight: "800",
-                  marginBottom: "6px",
-                }}
-              >
-                Port Constraint Intelligence
-              </div>
+                  <div
+                    style={{
+                      color: "#7dd3fc",
+                      fontWeight: "800",
+                    }}
+                  >
+                    {formatMoney(
+                      port.forecastRate
+                    )}
 
-              <div
-                style={{
-                  color: "#8192aa",
-                  fontSize: "12px",
-                  marginBottom: "15px",
-                }}
-              >
-                Vessel suitability is checked against
-                destination-port constraints before
-                charter decisions are finalized.
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gap: "10px",
-                }}
-              >
-                {portComparison.map((port) => {
-                  const status = getPortStatus(port);
-
-                  return (
-                    <div
-                      key={`constraint-${port.port}`}
+                    <span
                       style={{
-                        display: "flex",
-                        justifyContent:
-                          "space-between",
-                        alignItems: "center",
-                        gap: "15px",
-                        padding: "13px 14px",
-                        borderRadius: "11px",
-                        background:
-                          "rgba(255,255,255,0.025)",
-                        border:
-                          `1px solid ${status.border}`,
+                        color: "#8192aa",
+                        fontWeight: "500",
+                        fontSize: "11px",
                       }}
                     >
-                      <div>
-                        <div
-                          style={{
-                            fontWeight: "750",
-                            fontSize: "13px",
-                          }}
-                        >
-                          {port.port}
-                        </div>
+                      {" "}
+                      / MT
+                    </span>
+                  </div>
 
-                        <div
-                          style={{
-                            color: "#8192aa",
-                            fontSize: "11px",
-                            marginTop: "4px",
-                          }}
-                        >
-                          Draft / LOA / beam /
-                          cargo-handling check
-                        </div>
-                      </div>
-
-                      <div
-                        style={{
-                          padding:
-                            "6px 10px",
-                          borderRadius: "8px",
-                          color: status.color,
-                          background:
-                            status.background,
-                          border:
-                            `1px solid ${status.border}`,
-                          fontSize: "10px",
-                          fontWeight: "800",
-                          letterSpacing:
-                            "0.5px",
-                          whiteSpace:
-                            "nowrap",
-                        }}
-                      >
-                        {status.label}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                  <div
+                    style={{
+                      textAlign: "right",
+                      color: "#8192aa",
+                      fontSize: "11px",
+                    }}
+                  >
+                    {port.riskLevel || "—"}
+                  </div>
+                </div>
+              ))}
             </div>
           </>
         )}
@@ -4548,6 +2532,7 @@ function PortIntelligencePage({
     </>
   );
 }
+
 /* =========================================================
    DECISION HUB
 ========================================================= */
@@ -4747,10 +2732,8 @@ export default function App() {
       riskLevel: null,
       forecastExposure: null,
       forecastSeries: [],
-      idleScenario: null,
       scenarioResult: null,
     });
-    
 
   const [vesselComparison, setVesselComparison] =
     useState([]);
@@ -4858,12 +2841,9 @@ export default function App() {
           null,
 
         forecastSeries:
-  data.forecast_series || [],
+          data.forecast_series || [],
 
-idleScenario:
-  data.idle_scenario || null,
-
-scenarioResult: null,
+        scenarioResult: null,
       });
 
       setVesselComparison([]);
@@ -4887,279 +2867,263 @@ scenarioResult: null,
   ======================================================= */
 
   async function runScenario({
-  quantity,
-  fuelScenario,
-  portScenario,
-  demandScenario,
-}) {
-  try {
-    setLoading(true);
+    quantity,
+    fuelScenario,
+    portScenario,
+    demandScenario,
+  }) {
+    try {
+      setLoading(true);
 
-    // Convert scenario selections (-1 / 0 / +1)
-    // into actual market values.
-    const fuelPrice =
-      Number(shipment.fuelPrice) +
-      Number(fuelScenario) * 50;
+      const response = await fetch(
+        `${API_URL}/api/forecast/scenario`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
 
-    const portCongestion =
-      Math.max(
-        0,
-        Math.min(
-          100,
-          Number(shipment.portCongestion) +
-            Number(portScenario) * 20
-        )
+          body: JSON.stringify({
+            origin: shipment.origin,
+
+            origin_port:
+              shipment.originPort,
+
+            destination_country:
+              shipment.destinationCountry,
+
+            destination:
+              shipment.destination,
+
+            cargo: shipment.cargo,
+
+            vessel: shipment.vessel,
+
+            quantity: Number(quantity),
+
+            horizon: Number(
+              shipment.horizon
+            ),
+
+            fuel_scenario:
+              fuelScenario,
+
+            port_scenario:
+              portScenario,
+
+            demand_scenario:
+              demandScenario,
+          }),
+        }
       );
 
-    const demandIndex =
-      Math.max(
-        0,
-        Math.min(
-          100,
-          Number(shipment.demandIndex) +
-            Number(demandScenario) * 15
-        )
-      );
+      if (!response.ok) {
+        const errorText =
+          await response.text();
 
-    const requestBody = {
-      origin: shipment.origin,
-
-      origin_port:
-        shipment.originPort,
-
-      destination_country:
-        shipment.destinationCountry,
-
-      destination:
-        shipment.destination,
-
-      cargo: shipment.cargo,
-
-      vessel: shipment.vessel,
-
-      quantity: Number(quantity),
-
-      horizon: Number(
-        shipment.horizon
-      ),
-
-      fuel_price: fuelPrice,
-
-      commodity_price: Number(
-        shipment.commodityPrice
-      ),
-
-      port_congestion:
-        portCongestion,
-
-      demand_index:
-        demandIndex,
-
-      supply_index: Number(
-        shipment.supplyIndex
-      ),
-    };
-
-    console.log(
-      "WHAT-IF REQUEST:",
-      requestBody
-    );
-
-    const response = await fetch(
-      `${API_URL}/api/forecast/scenario`,
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-
-        body: JSON.stringify(
-          requestBody
-        ),
+        throw new Error(
+          `Scenario API error ${response.status}: ${errorText}`
+        );
       }
-    );
 
-    const data =
-      await response.json();
+      const data =
+        await response.json();
 
-    console.log(
-      "WHAT-IF RESPONSE:",
-      data
-    );
-
-    if (!response.ok) {
-      throw new Error(
-        data?.detail
-          ? JSON.stringify(
-              data.detail
-            )
-          : `Scenario API error ${response.status}`
-      );
-    }
-
-    setForecastData(
-      (previous) => ({
+      setForecastData((previous) => ({
         ...previous,
-
         scenarioResult: data,
-      })
-    );
-  } catch (error) {
-    console.error(
-      "Scenario error:",
-      error
-    );
+      }));
+    } catch (error) {
+      console.error(
+        "Scenario error:",
+        error
+      );
 
-    alert(
-      `What-If scenario failed.\n\n${error.message}`
-    );
-  } finally {
-    setLoading(false);
+      alert(
+        "The What-If endpoint is not available yet. We will add it to the FastAPI backend next."
+      );
+    } finally {
+      setLoading(false);
+    }
   }
-}
 
   /* =======================================================
      VESSEL COMPARISON
   ======================================================= */
 
   async function loadVesselComparison() {
-  try {
-    setLoading(true);
+    if (
+      forecastData.forecastRate === null
+    ) {
+      return;
+    }
 
-    const response = await fetch(
-      `${API_URL}/api/compare/vessels`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          origin: shipment.origin,
-          origin_port: shipment.originPort,
-          destination_country:
-            shipment.destinationCountry,
-          destination: shipment.destination,
-          cargo: shipment.cargo,
-          vessel: shipment.vessel,
-          quantity: Number(shipment.quantity),
-          horizon: Number(shipment.horizon),
-          fuel_price: Number(shipment.fuelPrice),
-          commodity_price: Number(shipment.commodityPrice),
-          port_congestion: Number(shipment.portCongestion),
-          demand_index: Number(shipment.demandIndex),
-          supply_index: Number(shipment.supplyIndex),
-        }),
+    try {
+      setLoading(true);
+
+      const response = await fetch(
+        `${API_URL}/api/compare/vessels`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            origin: shipment.origin,
+
+            origin_port:
+              shipment.originPort,
+
+            destination_country:
+              shipment.destinationCountry,
+
+            destination:
+              shipment.destination,
+
+            cargo: shipment.cargo,
+
+            quantity: Number(
+              shipment.quantity
+            ),
+
+            horizon: Number(
+              shipment.horizon
+            ),
+
+            fuel_price: Number(
+              shipment.fuelPrice
+            ),
+
+            commodity_price: Number(
+              shipment.commodityPrice
+            ),
+
+            port_congestion: Number(
+              shipment.portCongestion
+            ),
+
+            demand_index: Number(
+              shipment.demandIndex
+            ),
+
+            supply_index: Number(
+              shipment.supplyIndex
+            ),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `Vessel API error: ${response.status}`
+        );
       }
-    );
 
-    const data = await response.json();
+      const data =
+        await response.json();
 
-    console.log("VESSEL COMPARISON RESPONSE:", data);
-
-    if (!response.ok) {
-      throw new Error(
-        data?.detail
-          ? JSON.stringify(data.detail)
-          : `Vessel API error: ${response.status}`
+      setVesselComparison(
+        data.results || []
       );
-    }
-
-    if (!Array.isArray(data.vessels)) {
-      throw new Error(
-        "Backend did not return a vessels array."
+    } catch (error) {
+      console.error(
+        "Vessel comparison error:",
+        error
       );
+    } finally {
+      setLoading(false);
     }
-
-    setVesselComparison(data.vessels);
-  } catch (error) {
-    console.error(
-      "Vessel comparison error:",
-      error
-    );
-
-    setVesselComparison([]);
-
-    alert(
-      `Vessel comparison failed.\n\n${error.message}`
-    );
-  } finally {
-    setLoading(false);
   }
-}
 
   /* =======================================================
      PORT COMPARISON
   ======================================================= */
 
   async function loadPortComparison() {
-  try {
-    setLoading(true);
+    if (
+      forecastData.forecastRate === null
+    ) {
+      return;
+    }
 
-    const response = await fetch(
-      `${API_URL}/api/compare/ports`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          origin: shipment.origin,
-          origin_port: shipment.originPort,
-          destination_country:
-            shipment.destinationCountry,
-          destination: shipment.destination,
-          cargo: shipment.cargo,
-          vessel: shipment.vessel,
-          quantity: Number(shipment.quantity),
-          horizon: Number(shipment.horizon),
-          fuel_price: Number(shipment.fuelPrice),
-          commodity_price: Number(shipment.commodityPrice),
-          port_congestion: Number(shipment.portCongestion),
-          demand_index: Number(shipment.demandIndex),
-          supply_index: Number(shipment.supplyIndex),
-        }),
+    try {
+      setLoading(true);
+
+      const response = await fetch(
+        `${API_URL}/api/compare/ports`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            origin: shipment.origin,
+
+            origin_port:
+              shipment.originPort,
+
+            destination_country:
+              shipment.destinationCountry,
+
+            cargo: shipment.cargo,
+
+            vessel: shipment.vessel,
+
+            quantity: Number(
+              shipment.quantity
+            ),
+
+            horizon: Number(
+              shipment.horizon
+            ),
+
+            fuel_price: Number(
+              shipment.fuelPrice
+            ),
+
+            commodity_price: Number(
+              shipment.commodityPrice
+            ),
+
+            port_congestion: Number(
+              shipment.portCongestion
+            ),
+
+            demand_index: Number(
+              shipment.demandIndex
+            ),
+
+            supply_index: Number(
+              shipment.supplyIndex
+            ),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `Port API error: ${response.status}`
+        );
       }
-    );
 
-    const data = await response.json();
+      const data =
+        await response.json();
 
-    console.log(
-      "PORT COMPARISON RESPONSE:",
-      data
-    );
-
-    if (!response.ok) {
-      throw new Error(
-        data?.detail
-          ? JSON.stringify(data.detail)
-          : `Port API error: ${response.status}`
+      setPortComparison(
+        data.results || []
       );
-    }
-
-    if (!Array.isArray(data.ports)) {
-      throw new Error(
-        "Backend did not return a ports array."
+    } catch (error) {
+      console.error(
+        "Port comparison error:",
+        error
       );
+    } finally {
+      setLoading(false);
     }
-
-    setPortComparison(data.ports);
-  } catch (error) {
-    console.error(
-      "Port comparison error:",
-      error
-    );
-
-    setPortComparison([]);
-
-    alert(
-      `Port comparison failed.\n\n${error.message}`
-    );
-  } finally {
-    setLoading(false);
   }
-}
+
   /* =======================================================
      PAGE RENDER
   ======================================================= */
@@ -5220,14 +3184,14 @@ scenarioResult: null,
         );
 
       case "VesselMatch":
-  return (
-    <VesselMatchPage
-      vesselComparison={vesselComparison}
-      loading={loading}
-      shipment={shipment}
-      onCompare={loadVesselComparison}
-    />
-  );
+        return (
+          <VesselMatchPage
+            vesselComparison={
+              vesselComparison
+            }
+            loading={loading}
+          />
+        );
 
       case "Voyage Digital Twin":
         return (
@@ -5265,14 +3229,23 @@ scenarioResult: null,
   ======================================================= */
 
   useEffect(() => {
-  if (activePage === "VesselMatch") {
-    loadVesselComparison();
-  }
+    if (
+      activePage === "VesselMatch" &&
+      forecastData.forecastRate !== null
+    ) {
+      loadVesselComparison();
+    }
 
-  if (activePage === "Port Intelligence") {
-    loadPortComparison();
-  }
-}, [activePage]);
+    if (
+      activePage === "Port Intelligence" &&
+      forecastData.forecastRate !== null
+    ) {
+      loadPortComparison();
+    }
+  }, [
+    activePage,
+    forecastData.forecastRate,
+  ]);
 
   /* =======================================================
      APP UI
