@@ -39,7 +39,7 @@ import {
   Route,
 } from "lucide-react";
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = "https://portwise-backend.onrender.com";
 
 /* =========================================================
    NAVIGATION
